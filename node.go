@@ -53,12 +53,13 @@ func ParseNodeMetrics(input []byte) map[string]*NodeMetrics {
 	for _, line := range linesUniq {
 		node := strings.Fields(line)
 		nodeName := node[0]
-		nodeStatus := node[4] // mixed, allocated, etc.
+		nodePartition := node[1]
+		nodeStatus := node[5] // mixed, allocated, etc.
 
 		nodes[nodeName] = &NodeMetrics{0, 0, 0, 0, 0, 0, ""}
 
-		memAlloc, _ := strconv.ParseUint(node[1], 10, 64)
-		memTotal, _ := strconv.ParseUint(node[2], 10, 64)
+		memAlloc, _ := strconv.ParseUint(node[2], 10, 64)
+		memTotal, _ := strconv.ParseUint(node[3], 10, 64)
 
 
 		cpuInfo := strings.Split(node[3], "/")
@@ -74,6 +75,7 @@ func ParseNodeMetrics(input []byte) map[string]*NodeMetrics {
 		nodes[nodeName].cpuOther = cpuOther
 		nodes[nodeName].cpuTotal = cpuTotal
 		nodes[nodeName].nodeStatus = nodeStatus
+		nodes[nodeName].nodePartition = nodePartition
 	}
 
 	return nodes
@@ -82,7 +84,7 @@ func ParseNodeMetrics(input []byte) map[string]*NodeMetrics {
 // NodeData executes the sinfo command to get data for each node
 // It returns the output of the sinfo command
 func NodeData() []byte {
-	cmd := exec.Command("sinfo", "-h", "-N", "-O", "NodeList,AllocMem,Memory,CPUsState,StateLong")
+	cmd := exec.Command("sinfo", "-h", "-N", "-O", "NodeList,Partition,AllocMem,Memory,CPUsState,StateLong")
 	out, err := cmd.Output()
 	if err != nil {
 		log.Fatal(err)
@@ -127,11 +129,11 @@ func (nc *NodeCollector) Describe(ch chan<- *prometheus.Desc) {
 func (nc *NodeCollector) Collect(ch chan<- prometheus.Metric) {
 	nodes := NodeGetMetrics()
 	for node := range nodes {
-		ch <- prometheus.MustNewConstMetric(nc.cpuAlloc, prometheus.GaugeValue, float64(nodes[node].cpuAlloc), node, nodes[node].nodeStatus)
-		ch <- prometheus.MustNewConstMetric(nc.cpuIdle,  prometheus.GaugeValue, float64(nodes[node].cpuIdle),  node, nodes[node].nodeStatus)
-		ch <- prometheus.MustNewConstMetric(nc.cpuOther, prometheus.GaugeValue, float64(nodes[node].cpuOther), node, nodes[node].nodeStatus)
-		ch <- prometheus.MustNewConstMetric(nc.cpuTotal, prometheus.GaugeValue, float64(nodes[node].cpuTotal), node, nodes[node].nodeStatus)
-		ch <- prometheus.MustNewConstMetric(nc.memAlloc, prometheus.GaugeValue, float64(nodes[node].memAlloc), node, nodes[node].nodeStatus)
-		ch <- prometheus.MustNewConstMetric(nc.memTotal, prometheus.GaugeValue, float64(nodes[node].memTotal), node, nodes[node].nodeStatus)
+		ch <- prometheus.MustNewConstMetric(nc.cpuAlloc, prometheus.GaugeValue, float64(nodes[node].cpuAlloc), node, nodes[node].nodeStatus, nodes[node].nodePartition)
+		ch <- prometheus.MustNewConstMetric(nc.cpuIdle,  prometheus.GaugeValue, float64(nodes[node].cpuIdle),  node, nodes[node].nodeStatus, nodes[node].nodePartition)
+		ch <- prometheus.MustNewConstMetric(nc.cpuOther, prometheus.GaugeValue, float64(nodes[node].cpuOther), node, nodes[node].nodeStatus, nodes[node].nodePartition)
+		ch <- prometheus.MustNewConstMetric(nc.cpuTotal, prometheus.GaugeValue, float64(nodes[node].cpuTotal), node, nodes[node].nodeStatus, nodes[node].nodePartition)
+		ch <- prometheus.MustNewConstMetric(nc.memAlloc, prometheus.GaugeValue, float64(nodes[node].memAlloc), node, nodes[node].nodeStatus, nodes[node].nodePartition)
+		ch <- prometheus.MustNewConstMetric(nc.memTotal, prometheus.GaugeValue, float64(nodes[node].memTotal), node, nodes[node].nodeStatus, nodes[node].nodePartition)
 	}
 }
